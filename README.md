@@ -6,7 +6,7 @@ iOS Analytics for Snowplow
 [ ![Platform] [cocoa-plaform] ] [cocoadocs]
 
 ## Overview
-
+This Fork allows for use of afnetworking 1.3.3
 Add analytics to your iOS apps and iOS games with the [Snowplow][2] event tracker for [iOS 7.0+][3].
 
 With this tracker you can collect event data from your iOS applications, games or frameworks.

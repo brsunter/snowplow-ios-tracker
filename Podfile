@@ -1,3 +1,4 @@
 platform :ios, '7.0'
-pod 'AFNetworking'
+pod 'AFNetworking', '~> 1.3.3'
+
 pod 'FMDB'

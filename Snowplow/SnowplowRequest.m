@@ -60,11 +60,11 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
         } else {
             _urlEndpoint = [url URLByAppendingPathComponent:@"/com.snowplowanalytics.snowplow/tp2"];
         }
-        
+
         NSString *libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
         NSString *dbPath = [libraryPath stringByAppendingPathComponent:@"snowplowEvents.sqlite"];
         _dbQueue = [FMDatabaseQueue databaseQueueWithPath:dbPath];
-        
+
         [self setBufferTime:kDefaultBufferTimeout];
     }
     return self;
@@ -92,7 +92,7 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
 - (void) setBufferTime:(int) userTime {
     int time = kDefaultBufferTimeout;
     if(userTime <= 300) time = userTime; // 5 minute intervals
-    
+
     _timer = [NSTimer scheduledTimerWithTimeInterval:time target:self selector:@selector(flushBuffer) userInfo:nil repeats:YES];
 }
 
@@ -107,10 +107,10 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
         DLog(@"Database empty. Returning..");
         return;
     }
-    
+
     //Empties the buffer and sends the contents to the collector
     if([_httpMethod isEqual:@"POST"]) {
-        
+
         NSMutableArray *eventArray = [[NSMutableArray alloc] init];
         NSMutableArray *indexArray = [[NSMutableArray alloc] init];
         for (NSDictionary * eventWithMetaData in [_db getAllNonPendingEvents]) {
@@ -121,69 +121,68 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
         NSMutableDictionary *payload = [[NSMutableDictionary alloc] init];
         [payload setValue:kPayloadDataSchema forKey:@"schema"];
         [payload setValue:eventArray forKey:@"data"];
-        
+
         [self sendPostData:payload withDbIndexArray:indexArray];
     } else if ([_httpMethod isEqual:@"GET"]) {
-        
+
         NSMutableArray *indexArray = [[NSMutableArray alloc] init];
         for (NSDictionary * eventWithMetaData in [_db getAllNonPendingEvents]) {
             [indexArray addObject:[eventWithMetaData objectForKey:@"ID"]];
             [_db setPendingWithId:(long long int)[eventWithMetaData objectForKey:@"ID"]];
             [self sendGetData:[eventWithMetaData objectForKey:@"eventData"] withDbIndexArray:indexArray];
         }
-        
+
     } else {
         DLog(@"Invalid httpMethod provided. Use \"POST\" or \"GET\".");
     }
     [_buffer removeAllObjects];
 }
 
-- (void) sendPostData:(NSDictionary *)data withDbIndexArray:(NSMutableArray *)dbIndexArray {
-    AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
-    manager.requestSerializer = [AFJSONRequestSerializer serializer];
-    
-    [manager POST:[_urlEndpoint absoluteString] parameters:data success:^(AFHTTPRequestOperation *operation, id responseObject) {
-        DLog(@"JSON: %@", responseObject);
-        [_dbQueue inDatabase:^(FMDatabase *db) {
-            NSMutableArray *removedIDs = [NSMutableArray arrayWithArray:dbIndexArray];
-            for (int i=0; i < dbIndexArray.count; i++) {
-                DLog(@"Removing event at index: %@", dbIndexArray[i]);
-                [_db removeEventWithId:[[dbIndexArray objectAtIndex:i] longLongValue]];
-                [removedIDs addObject:dbIndexArray[i]];
-            }
-            [dbIndexArray removeObjectsInArray:removedIDs];
-
-        }];
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-        DLog(@"Error: %@", error);
-        for (int i=0; i < dbIndexArray.count;  i++) {
-            [_db removePendingWithId:(long long int)dbIndexArray[i]];
-        }
+- (void)sendPostData:(NSDictionary *)data withDbIndexArray:(NSMutableArray *)dbIndexArray
+{
+  AFHTTPClient* client = [[AFHTTPClient alloc]initWithBaseURL:_urlEndpoint.baseURL];
+  NSURLRequest* request = [[AFHTTPClient new]requestWithMethod:@"POST" path:_urlEndpoint.path parameters:data];
+  AFJSONRequestOperation * jsonOperation = [[AFJSONRequestOperation alloc]initWithRequest:request];
+  [jsonOperation setCompletionBlockWithSuccess: ^(AFHTTPRequestOperation * operation, id responseObject) {
+    DLog(@"JSON: %@", responseObject);
+    [_dbQueue inDatabase: ^(FMDatabase * db) {
+      NSMutableArray * removedIDs = [NSMutableArray arrayWithArray:dbIndexArray];
+      for (int i = 0; i < dbIndexArray.count; i++) {
+        DLog(@"Removing event at index: %@", dbIndexArray[i]);
+        [_db removeEventWithId:[[dbIndexArray objectAtIndex:i] longLongValue]];
+        [removedIDs addObject:dbIndexArray[i]];
+      }
+      [dbIndexArray removeObjectsInArray:removedIDs];
     }];
+  } failure: ^(AFHTTPRequestOperation * operation, NSError * error) {
+    DLog(@"Error: %@", error);
+    for (int i = 0; i < dbIndexArray.count; i++) {
+      [_db removePendingWithId:(long long int)dbIndexArray[i]];
+    }
+  }];
 }
 
-- (void) sendGetData:(NSDictionary *)data withDbIndexArray:(NSMutableArray *)dbIndexArray {
-    AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
-    manager.requestSerializer = [AFHTTPRequestSerializer serializer];
-    manager.responseSerializer.acceptableContentTypes = [NSSet setWithObjects:@"text/html", @"application/x-www-form-urlencoded", @"text/plain", @"image/gif", nil];
-    
-    [manager GET:[_urlEndpoint absoluteString] parameters:data success:^(AFHTTPRequestOperation *operation, id responseObject) {
-        DLog(@"JSON: %@", responseObject);
-        [_dbQueue inDatabase:^(FMDatabase *db) {
-            NSMutableArray *removedIDs = [NSMutableArray arrayWithArray:dbIndexArray];
-            for (int i=0; i < dbIndexArray.count; i++) {
-                DLog(@"Removing event at index: %@", dbIndexArray[i]);
-                [_db removeEventWithId:[[dbIndexArray objectAtIndex:i] longLongValue]];
-                [removedIDs addObject:dbIndexArray[i]];
-            }
-            [dbIndexArray removeObjectsInArray:removedIDs];
-        }];
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-        DLog(@"Error: %@", error);
-        for (int i=0; i < dbIndexArray.count;  i++) {
-            [_db removePendingWithId:(long long int)dbIndexArray[i]];
-        }
+- (void)sendGetData:(NSDictionary *)data withDbIndexArray:(NSMutableArray *)dbIndexArray
+{
+  AFHTTPClient* client = [[AFHTTPClient alloc]initWithBaseURL:_urlEndpoint.baseURL];
+  NSURLRequest* request = [[AFHTTPClient new]requestWithMethod:@"GET" path:_urlEndpoint.path parameters:data];
+  AFJSONRequestOperation * jsonOperation = [[AFJSONRequestOperation alloc]initWithRequest:request];
+  [jsonOperation setCompletionBlockWithSuccess: ^(AFHTTPRequestOperation * operation, id responseObject) {
+    DLog(@"JSON: %@", responseObject);
+    [_dbQueue inDatabase: ^(FMDatabase * db) {
+      NSMutableArray * removedIDs = [NSMutableArray arrayWithArray:dbIndexArray];
+      for (int i = 0; i < dbIndexArray.count; i++) {
+        DLog(@"Removing event at index: %@", dbIndexArray[i]);
+        [_db removeEventWithId:[[dbIndexArray objectAtIndex:i] longLongValue]];
+        [removedIDs addObject:dbIndexArray[i]];
+      }
+      [dbIndexArray removeObjectsInArray:removedIDs];
     }];
+  } failure: ^(AFHTTPRequestOperation * operation, NSError * error) {
+    DLog(@"Error: %@", error);
+    for (int i = 0; i < dbIndexArray.count; i++) {
+      [_db removePendingWithId:(long long int)dbIndexArray[i]];
+    }
+  }];
 }
-
 @end
