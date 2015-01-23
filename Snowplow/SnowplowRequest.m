@@ -146,7 +146,7 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
 	NSURL *endpointWithQueryParams = [[NSURL alloc]initWithString:fullEndpoint];
 	NSMutableURLRequest *request = [[NSMutableURLRequest alloc]initWithURL:endpointWithQueryParams];
 	[request setHTTPMethod:@"POST"];
-
+    [AFJSONRequestOperation addAcceptableContentTypes:[NSSet setWithObject:@"image/gif"]];
 	AFJSONRequestOperation *jsonOperation = [[AFJSONRequestOperation alloc]initWithRequest:request];
 	[jsonOperation setCompletionBlockWithSuccess: ^(AFHTTPRequestOperation *operation, id responseObject) {
 	    DLog(@"JSON: %@", responseObject);
@@ -175,7 +175,7 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
 	NSMutableURLRequest *request = [[NSMutableURLRequest alloc]initWithURL:endpointWithQueryParams];
 
 	[request setHTTPMethod:@"GET"];
-
+    [AFJSONRequestOperation addAcceptableContentTypes:[NSSet setWithObject:@"image/gif"]];
 	AFJSONRequestOperation *jsonOperation = [[AFJSONRequestOperation alloc]initWithRequest:request];
 	[jsonOperation setCompletionBlockWithSuccess: ^(AFHTTPRequestOperation *operation, id responseObject) {
 	    DLog(@"JSON: %@", responseObject);
