@@ -131,6 +131,9 @@ NSString * const kVersion               = @"ios-0.2.2";
     }
     [payload addValueToPayload:[NSString stringWithFormat:@"%.0f", tstamp] forKey:@"dtm"];
     
+    NSString* timeZone = [SnowplowUtils getTimezone];
+    [payload addValueToPayload:timeZone forKey:@"tz"];
+    
     return tstamp;
 }
 
