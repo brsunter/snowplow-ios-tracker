@@ -26,6 +26,12 @@
 #import <FMDB.h>
 #import <AFNetworking/AFNetworking.h>
 
+@interface SnowplowRequest ()
+
+@property (nonatomic, copy) void (^errorCallback)(NSError *);
+
+@end
+
 @implementation SnowplowRequest {
 	NSURL *_urlEndpoint;
 	NSString *_httpMethod;
@@ -164,6 +170,9 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
 	    for (int i = 0; i < dbIndexArray.count; i++) {
 	        [_db removePendingWithId:(long long int)dbIndexArray[i]];
 		}
+        if (self.errorCallback) {
+            self.errorCallback(error);
+        }
 	}];
 	[jsonOperation start];
 }
@@ -193,6 +202,9 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
 	    for (int i = 0; i < dbIndexArray.count; i++) {
 	        [_db removePendingWithId:(long long int)dbIndexArray[i]];
 		}
+        if (self.errorCallback) {
+            self.errorCallback(error);
+        }
 	}];
 	[jsonOperation start];
 }
@@ -219,6 +231,11 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
 		}
 	}
 	return urlWithQuerystring;
+}
+
+- (void)setErrorCallback:(void (^)(NSError *))errorCallback
+{
+    self.errorCallback = errorCallback;
 }
 
 @end

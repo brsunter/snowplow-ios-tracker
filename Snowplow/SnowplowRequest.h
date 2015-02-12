@@ -76,4 +76,9 @@ enum SnowplowBufferOptions {
  */
 - (void) flushBuffer;
 
+/**
+ * Register an error callback so we can actually know when there's an error and maybe do something about it.
+ */
+- (void) setErrorCallback:(void (^)(NSError* error))errorCallback;
+
 @end
