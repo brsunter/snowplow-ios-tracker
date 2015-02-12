@@ -235,7 +235,7 @@ static NSString *const kPayloadDataSchema    = @"iglu:com.snowplowanalytics.snow
 
 - (void)setErrorCallback:(void (^)(NSError *))errorCallback
 {
-    self.errorCallback = errorCallback;
+    _errorCallback = errorCallback;
 }
 
 @end
