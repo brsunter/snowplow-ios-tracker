@@ -87,7 +87,9 @@
 #endif
             [self addValueToPayload:encodedString forKey:typeEncoded];
         } else {
-            [self addValueToPayload:[[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding] forKey:typeNotEncoded];
+            NSString* payloadString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+            payloadString = [payloadString stringByReplacingOccurrencesOfString:@"&" withString:@"%26"];
+            [self addValueToPayload:payloadString forKey:typeNotEncoded];
         }
     } // else handle a bad name-value pair even though it passes JSONSerialization?
 }
